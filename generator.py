@@ -2,29 +2,22 @@ import numpy as np
 
 class Generator():
 
-	def __init__(self, mu, sigma, n, size, label=None, filename=None):
-		self.mu = mu
-		self.sigma = sigma
-		self.dimensions = n
-		self.size = size
-		self.label = label
-		self.filename = filename
-	
-	def generate(self):
-		hs_points = self.gen_hs_points()
-		c_points = self.hs_to_c(hs_points)
-		write_points(c_points, filename=self.filename, label=self.label)
-	
-	def gen_hs_points(self):
-		hs_points = np.zeros((self.size, self.dimensions)) 
-		for i in range(self.size):
+	def generate(self, mu, sigma, n, size, label=None):
+		hs_points = self.gen_hs_points(mu, sigma, n, size)
+		c_points = self.hs_to_c(hs_points, size, n)
+		l_points = self.labeled_points(c_points, size, n, label)
+		return l_points
+
+	def gen_hs_points(self, mu, sigma, n, size):
+		hs_points = np.zeros((size, n)) 
+		for i in range(size):
 			# generate a value for each dimension in hyperspherical coordinates
 			hs_point = hs_points[i]
-			for j in range(self.dimensions):
+			for j in range(n):
 				if j == 0:
 					# normal distribution on radius
-					coord = np.random.normal(self.mu, self.sigma)
-				elif j < self.dimensions-1:
+					coord = np.random.normal(mu, sigma)
+				elif j < n-1:
 					# uniform distribution [0,pi] on phi
 					coord = np.random.rand()*np.pi
 				else:
@@ -34,21 +27,21 @@ class Generator():
 			hs_points[i] = hs_point
 		return hs_points
 	
-	def hs_to_c(self, hs_points):
-		c_points = np.zeros((self.size, self.dimensions))
+	def hs_to_c(self, hs_points, size, n):
+		c_points = np.zeros((size, n))
 		# translate each hyperspherical point into a cartesian point
-		for i in range(self.size):
+		for i in range(size):
 	
 			hs_point = hs_points[i]
 			c_point = c_points[i]
 	
-			sin = np.ones((self.dimensions))
+			sin = np.ones((n))
 			sin[0] = hs_point[0]
 	
-			for j in range(self.dimensions):
+			for j in range(n):
 				if j == 0:
 					coord = sin[j] * np.cos(hs_point[j+1])
-				elif j < self.dimensions-1:
+				elif j < n-1:
 					sin[j] = sin[j-1] * np.sin(hs_point[j])
 					coord = sin[j] *  np.cos(hs_point[j+1])
 				else:
@@ -56,7 +49,12 @@ class Generator():
 				c_point[j] = coord
 			c_points[i] = c_point
 		return c_points
-	
+
+	def labeled_points(self, points, size, n, label):
+		l_points = np.ones((size, n+1))
+		for i in range(size):
+			l_points[i] = np.append(points[i], label)
+		return l_points
 		
 def write_points(points, filename=None, label=None):
 	if filename is None:
