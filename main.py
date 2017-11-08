@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import generator
 
+CSV_LOC = "csv/"
 INNER_SPHERE_LABEL = 0
 OUTER_SPHERE_LABEL = 1
 
@@ -25,8 +26,8 @@ def main():
 	toy = np.append(inner_sphere, outer_sphere, axis=0)
 	np.random.shuffle(toy)
 
-	print("Writing points to " + filename)
-	f = open(filename, 'w')
+	print("Writing points to " + CSV_LOC + filename)
+	f = open(CSV_LOC + filename, 'w')
 	for point in toy:
 		line = ""
 		for coord in point:
