@@ -51,23 +51,12 @@ class Generator():
 		return c_points
 
 	def labeled_points(self, points, size, n, label):
-		l_points = np.ones((size, n+1))
+		if label == 0:
+			label = [1,0]
+		else:
+			label = [0,1]
+		l_points = np.ones((size, n+2))
 		for i in range(size):
 			l_points[i] = np.append(points[i], label)
 		return l_points
-		
-def write_points(points, filename=None, label=None):
-	if filename is None:
-		filename = "points.csv"
-	f = open(filename, 'w') # TODO Error handle
-	line = ""
-	for point in points:
-		for coord in point:
-			line += str(coord) + ", "
-		if label is not None:
-			line += str(label)
-		else:
-			line = line.rstrip(', ')
-		line += '\n'
-	f.write(line)
 
