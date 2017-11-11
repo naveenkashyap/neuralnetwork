@@ -2,11 +2,12 @@ import tensorflow as tf
 
 
 
-class CSV_to_DS()
+class CSV_to_DS():
 	
 
-	def __init__(Dimensionality,FilePathName):
-		
+	def __init__(self,Dimensionality,FilePathName):
+
+				
 		#Generating the array of default values for tf.decode_csv later on.
 		self.DefaultArray=self.GenerateDefaultArray(Dimensionality)
 
@@ -34,9 +35,9 @@ class CSV_to_DS()
 		GenDataPoint=tf.constant(-9999,dtype=tf.float32)
 		GenLabel=[tf.constant(-1,dtype=tf.int32),tf.constant(-1,dtype=tf.int32)]
 		Default=[]
-		for x in range(0,int(dimensionality):
+		for x in range(0,int(Dimensionality)):
 			Default.append(GenDataPoint)
-		Default.append([GenLabel])	
+		Default.append(GenLabel)	
 		
 		return Default
 
@@ -62,40 +63,40 @@ class CSV_to_DS()
 	#Generating the datasets using the user entered information. PercentOfTrainingData is a decimal value that indicates how much of the total data set to use as training (the rest will be used for testing).
 	def GenerateDatasets(self,TotalNumPoints,PercentOfTrainingData):
 
-	with tf.Session(self.ComputationGraph) as sess:
-		sess.run(tf.global_variables_initializer())
+		with tf.Session(self.ComputationGraph) as sess:
+			sess.run(tf.global_variables_initializer())
 	
 
-		#Making the empty training and testing datasets.
-		TrainingDataset=tf.Data.Dataset()
-		TestingDataset=tf.Data.Dataset()
+			#Making the empty training and testing datasets.
+			TrainingDataset=tf.Data.Dataset()
+			TestingDataset=tf.Data.Dataset()
 
-		#Constructing the datasets
-		for i in range(TotalNumPoints):
+			#Constructing the datasets
+			for i in range(TotalNumPoints):
 		
-			#Getting one line from the CSV as a list of tensors in the format determined by record_defaults.
-			DataCoordsAndLabels=sess.run(self.CSVLineToTensorList)
+				#Getting one line from the CSV as a list of tensors in the format determined by record_defaults.
+				DataCoordsAndLabels=sess.run(self.CSVLineToTensorList)
 	
-			#Now cutting up the list of input information
-			IndexOfLastCoord=len(DataCoordsAndLabels)-2
-			DataPointList=DataCoordsAndLabels[:IndexOfLastCoord]
-			Label=DataCoordsAndLabels[IndexOfLastCoord:]
+				#Now cutting up the list of input information
+				IndexOfLastCoord=len(DataCoordsAndLabels)-2
+				DataPointList=DataCoordsAndLabels[:IndexOfLastCoord]
+				Label=DataCoordsAndLabels[IndexOfLastCoord:]
 
-			#Stacking all the data points into one tensor
-			DataPointTensor=tf.stack(DataPointList)
+				#Stacking all the data points into one tensor
+				DataPointTensor=tf.stack(DataPointList)
 
-			#Concatenating the label to the tensor that contains all of the data points. The shape of the result is: [Coord1,Coord2,...CoordN,[OuterSphereLabel,InnerSphereLabel]] where Coord1 to CoordN are one tensor object and the set of labels are one tensor object as well.
-			OneDataPointAndLabel=tf.concat(DataPointTensor,Label)
+				#Concatenating the label to the tensor that contains all of the data points. The shape of the result is: [Coord1,Coord2,...CoordN,[OuterSphereLabel,InnerSphereLabel]] where Coord1 to CoordN are one tensor object and the set of labels are one tensor object as well.
+				OneDataPointAndLabel=tf.concat(DataPointTensor,Label)
 				
 
-			DataPointAndLabel=sess.run(OneDataPointAndLabel)
+				DataPointAndLabel=sess.run(OneDataPointAndLabel)
 		
 
-			#Splitting into training and testing data sets.
-			if i <= (TotalNumPoints)*PercentOfTrainingData:
-				TrainingDataset=TrainingDataset.concatenate(DataPointAndLabel)	
-			else:
-				TestingDataset=TestingDataset.concatenate(DataPointAndLabel)
+				#Splitting into training and testing data sets.
+				if i <= (TotalNumPoints)*PercentOfTrainingData:
+					TrainingDataset=TrainingDataset.concatenate(DataPointAndLabel)	
+				else:
+					TestingDataset=TestingDataset.concatenate(DataPointAndLabel)
 			
 
 
