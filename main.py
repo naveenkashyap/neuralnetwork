@@ -1,6 +1,8 @@
 import sys
 import numpy as np
 import generator
+from computation.trainer import Trainer_np_Array as trainer
+from computation.trainer import Tester_np_Array as tester
 
 CSV_LOC = "csv/"
 INNER_SPHERE_LABEL = 0
@@ -25,6 +27,9 @@ def main():
 	print("Combining and shuffling generated points")
 	toy = np.append(inner_sphere, outer_sphere, axis=0)
 	np.random.shuffle(toy)
+
+	tr = trainer.Trainer_np_Array()
+	te = tester.Tester_np_Array()
 
 	print("Writing points to " + CSV_LOC + filename)
 	f = open(CSV_LOC + filename, 'w')
