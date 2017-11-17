@@ -64,8 +64,8 @@ def main():
 
 
 
-	#Initializing the dictionaries that will be passed around.
-	num_Nodes_HL1=50
+	BatchSize=100
+	num_Nodes_HL1=100
 	num_Output_Nodes=2
 
 
@@ -76,7 +76,8 @@ def main():
 
 	HiddenLayer1Dict,OutputLayerDict=Trainer.get_Layers()
 
-	Trainer.Train(TrainingDataPoints,TrainingLabels,10)
+	for i in range(10):
+		Trainer.Train(TrainingDataPoints,TrainingLabels,BatchSize,TestingDataPoints,TestingLabels)
 	#Tester.test(HiddenLayer1Dict,OutputLayerDict,TestingDataPoints,TestingLabels,"DummyFile.txt")
 	
 
