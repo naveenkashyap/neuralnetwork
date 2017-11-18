@@ -1,32 +1,97 @@
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import tensorflow as tf
 import numpy as np
 import sys
 import math
-from TensorGenerator import TensorGenerator
+import generator
 
 
 
-
-#First command line argument is the path to the circle CSV, second command line argument is the path to the torus CSV.
-
-
-
-#Configured for No Overlap (TorusRadius=60). Change this if needed here:
-TorusRadius=60
+#Command Line Arguments:
+#1) Dimensionality
+#2) Num Points
+#3) OS_mu
+#4) OS_sigma
+#5) IS_mu
+#6) IS_sigma
+#7) num_Nodes
+#8) num_epochs
 
 
 #############################################################################################################################################
 #STEP ONE: READ IN DATA
 
+g=generator.Generator()
+Dimensionality = int(sys.argv[1])
+Num_Points = int(sys.argv[2])
 
-#Gives me two numpy arrays. One of them is NumDataPoints by 2 array (each row has an x and y coordinate) and the other is NumDataPoints by 1 array that just contains the labels.
-ToGenerateData=TensorGenerator()
 
-#train_x is the training coords, train_y is the training labels, test_x is the testing coords, test_y is the testing labels. 
-train_x,train_y,test_x,test_y,NumOfDataPoints=ToGenerateData.OutputData(sys.argv[1],sys.argv[2])
+OS_mu = int(sys.argv[3])
+OS_sigma = int(sys.argv[4])
 
+
+IS_mu=int(sys.argv[5])
+IS_sigma=int(sys.argv[6])
+
+#Generating the outer sphere points
+OuterSphereArray=g.generate(OS_mu,OS_sigma,Dimensionality,Num_Points,1)
+
+
+#Generating the inner sphere points
+InnerSphereArray=g.generate(IS_mu,IS_sigma,Dimensionality,Num_Points,0)
+
+
+#Shuffling the data and splitting it up into the different arrays required.
+
+AllData=np.append(OuterSphereArray,InnerSphereArray,axis=0)
+np.random.shuffle(AllData)
+
+
+
+TrainingRows=int(math.floor((Num_Points*2)*0.8))
+
+TrainingDataPoints=np.zeros((TrainingRows,Dimensionality))
+TrainingLabels=np.zeros((TrainingRows,2))
+
+
+TestingDataPoints=np.zeros(((Num_Points*2-TrainingRows),Dimensionality))
+TestingLabels=np.zeros((len(TestingDataPoints),2))
+
+
+j=0
+for i in range(len(AllData)):
+	if i < TrainingRows:
+		Row=AllData[i]
+		TrainingDataPoints[i]=Row[0:Dimensionality]
+		TrainingLabels[i]=Row[-2:]
+	else:
+		Row=AllData[i]
+		TestingDataPoints[j]=Row[0:Dimensionality]
+		TestingLabels[j]=Row[-2:]
+		j=j+1
+
+
+
+print "All data"
+for i in range(len(AllData)):
+	print AllData[i]
+
+
+
+print "Training Rows"
+for i in range(len(TrainingDataPoints)):
+	print TrainingDataPoints[i]
+
+print "Training Labels"
+for i in range(len(TrainingLabels)):
+	print TrainingLabels[i]
+
+print "Testing Rows"
+for i in range(len(TestingDataPoints)):
+        print TestingDataPoints[i]
+
+print "Testing Labels"
+for i in range(len(TestingLabels)):
+        print TestingLabels[i]
 
 #############################################################################################################################################
 
@@ -40,7 +105,7 @@ train_x,train_y,test_x,test_y,NumOfDataPoints=ToGenerateData.OutputData(sys.argv
 
 
 #One hidden layer only
-num_Nodes=10
+num_Nodes=int(sys.argv[7])
 
 #Number of output nodes
 n_classes=2
@@ -48,9 +113,9 @@ n_classes=2
 #Batch Size
 batch_size=100
 
-#x is input (the x-coordinate and y-coordinate). y is labels. These are placeholders I will feed things through later on (Will feed the data to be analyzed through x and the labels through y)
-x=tf.placeholder('float')
-y=tf.placeholder('float')
+#Placeholders for the input and labels
+Input_Placeholder=tf.placeholder('float')
+Labels_Placeholder=tf.placeholder('float')
 
 
 #############################################################################################################################################
@@ -68,7 +133,7 @@ y=tf.placeholder('float')
 def neural_network_model(data):
 
 	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
-	hidden_1_layer={'weights':tf.Variable(tf.random_normal([2,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
+	hidden_1_layer={'weights':tf.Variable(tf.random_normal([Dimensionality,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
 	
 	#These are the weights that are leading into the two output nodes.
 	output_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,n_classes])),'biases':tf.Variable(tf.random_normal([n_classes]))}
@@ -110,13 +175,13 @@ def train_neural_network(x):
 	prediction=neural_network_model(x)
 	
 	#Setting up the cost function (which is later minimized to increase accuracy).
-	cost=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction,labels=y))
+	cost=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction,labels=Labels_Placeholder))
 	
 	#Optimizing function that acts to minimize the cost function (and therefore minimize the difference between the output values and the expected values)
 	optimizer = tf.train.AdamOptimizer().minimize(cost)
 
 	#One epoch is a complete cycle through the data as well as the backpropogation (adjusting the weights to increase accuracy)
-	num_epochs=50
+	num_epochs=int(sys.argv[8])
 
 	#Setting up the accuracy array to hold the ANN's accuracy per epoch.
         AccuracyArray=np.zeros(num_epochs)
@@ -132,34 +197,33 @@ def train_neural_network(x):
 		#THIS IS THE TRAINING
 
 		#Setting up the correct and accuracy operations to be used later on.
-                correct=tf.equal(tf.argmax(prediction,1), tf.argmax(y,1))
+                correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
                 accuracy=tf.reduce_mean(tf.cast(correct,'float'))
 
 		for epoch in range(num_epochs):
 			epoch_loss = 0
 			i=0
-			batch_num=0
 
 	
 			#Takes batches of the training data.
-			while i < len(train_x):
+			while i < len(TrainingDataPoints):
 				start=i
 				end=i+batch_size
-				batch_x=np.array(train_x[start:end])
-				batch_y=np.array(train_y[start:end])
+				batch_x=np.array(TrainingDataPoints[start:end])
+				batch_y=np.array(TrainingLabels[start:end])
 
 
 
 				#This is where the ANN is actually ran. The weights and biases are modified with this line of code (since the optimizer operation is ran).
-				_,c,ToPrint=sess.run([optimizer,cost, prediction], feed_dict={x: batch_x, y: batch_y})
+				_,c,ToPrint=sess.run([optimizer,cost, prediction], feed_dict={Input_Placeholder: batch_x, Labels_Placeholder: batch_y})
 				epoch_loss+=c
-				correct=tf.equal(tf.argmax(prediction,1), tf.argmax(y,1))
+				correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
                 		accuracy=tf.reduce_mean(tf.cast(correct,'float'))
 				i+=batch_size
 			
 			#Getting the accuracy per epoch
-			AccuracyArray[epoch]=accuracy.eval({x:test_x, y:test_y})*100
-
+			AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
+			print AccuracyArray[epoch]
 			epochNum=epoch+1
 		
 		#Getting the max accuracy achieved as well as the epoch it achieved that accuracy.
@@ -183,7 +247,7 @@ def train_neural_network(x):
 					
 		
 		#Setting up the correct and accuracy operations to allow for the accuracy calculation (see ppt. for more detail).
-		correct=tf.equal(tf.argmax(prediction,1), tf.argmax(y,1))
+		correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
 		accuracy=tf.reduce_mean(tf.cast(correct,'float'))
 		
 		#Printing a message indicating the accuracy the ANN achieved as well as how many epochs it required.
@@ -201,7 +265,7 @@ def train_neural_network(x):
 #STEP FIVE: RUNNING THE CODE
 
 
-train_neural_network(x)
+train_neural_network(Input_Placeholder)
 
  
 #############################################################################################################################################
