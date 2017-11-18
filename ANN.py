@@ -71,27 +71,6 @@ for i in range(len(AllData)):
 
 
 
-print "All data"
-for i in range(len(AllData)):
-	print AllData[i]
-
-
-
-print "Training Rows"
-for i in range(len(TrainingDataPoints)):
-	print TrainingDataPoints[i]
-
-print "Training Labels"
-for i in range(len(TrainingLabels)):
-	print TrainingLabels[i]
-
-print "Testing Rows"
-for i in range(len(TestingDataPoints)):
-        print TestingDataPoints[i]
-
-print "Testing Labels"
-for i in range(len(TestingLabels)):
-        print TestingLabels[i]
 
 #############################################################################################################################################
 
@@ -129,7 +108,7 @@ Labels_Placeholder=tf.placeholder('float')
 #STEP THREE: SETTING UP THE ACTUAL LAYER(S) OF THE ANN.
 
 
-#Setting up the computation graph of the ANN. The ANN has two inputs (the x-coordinate and the y-coordinate of the data point), one layer with the user defined number of nodes, and one output layer. "data" is what I feed to the neural network. 
+#Setting up the computation graph of the ANN. The ANN has two inputs (the x-coordinate and the y-coordinate of the data point), one layer with the user defined number of nodes, and one output layer. 
 def neural_network_model(data):
 
 	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
@@ -144,7 +123,6 @@ def neural_network_model(data):
 	#Takes the output of the (input*weights) + biases of layer one and puts it through a sigmoid function (to get the input to the output nodes). This is the output of the first layer that is to be fed into the output layer. The explicit function is: 1/(1+exp(-x))
 	l1=tf.nn.sigmoid(l1)
 
-	#Gives the two final values of the ANN. The first output value corresponds to the input point being part of the circle set and the second output value corresponds to the input point being part of the torus set. Since I am using the softmax activation function, the outputs of the ANN correspond to the probability the input point is in a given group. The first output is the predicted probability the input point is a part of the circle group, and the second output point is the predicted probability the input point is a part of the torus group.
 	output=tf.add(tf.matmul(l1,output_layer['weights']),output_layer['biases'])
 
 	output=tf.nn.softmax(logits=output)
@@ -186,49 +164,48 @@ def train_neural_network(x):
 	#Setting up the accuracy array to hold the ANN's accuracy per epoch.
         AccuracyArray=np.zeros(num_epochs)
 		
+
+	with tf.device('/device:GPU:0'):	
+		#Now actually running the ANN.
+		with tf.Session() as sess:
+
+			#Initializes the variables (the weights and biases of the first hidden layer and the output layer) that were set up earlier. 
+			sess.run(tf.global_variables_initializer())
+
+
+			#THIS IS THE TRAINING
+
+			#Setting up the correct and accuracy operations to be used later on.
+			correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
+			accuracy=tf.reduce_mean(tf.cast(correct,'float'))
+
+			for epoch in range(num_epochs):
+				i=0
+
 	
-	#Now actually running the ANN.
-	with tf.Session() as sess:
-
-		#Initializes the variables (the weights and biases of the first hidden layer and the output layer) that were set up earlier. 
-		sess.run(tf.global_variables_initializer())
-
-
-		#THIS IS THE TRAINING
-
-		#Setting up the correct and accuracy operations to be used later on.
-                correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
-                accuracy=tf.reduce_mean(tf.cast(correct,'float'))
-
-		for epoch in range(num_epochs):
-			epoch_loss = 0
-			i=0
-
-	
-			#Takes batches of the training data.
-			while i < len(TrainingDataPoints):
-				start=i
-				end=i+batch_size
-				batch_x=np.array(TrainingDataPoints[start:end])
-				batch_y=np.array(TrainingLabels[start:end])
+				#Takes batches of the training data.
+				while i < len(TrainingDataPoints):
+					start=i
+					end=i+batch_size
+					batch_x=np.array(TrainingDataPoints[start:end])
+					batch_y=np.array(TrainingLabels[start:end])
 
 
 
-				#This is where the ANN is actually ran. The weights and biases are modified with this line of code (since the optimizer operation is ran).
-				_,c,ToPrint=sess.run([optimizer,cost, prediction], feed_dict={Input_Placeholder: batch_x, Labels_Placeholder: batch_y})
-				epoch_loss+=c
-				correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
-                		accuracy=tf.reduce_mean(tf.cast(correct,'float'))
-				i+=batch_size
+					#This is where the ANN is actually ran. The weights and biases are modified with this line of code (since the optimizer operation is ran).
+					_,ANNOutput=sess.run([optimizer,prediction], feed_dict={Input_Placeholder: batch_x, Labels_Placeholder: batch_y})
+				
+					correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
+					accuracy=tf.reduce_mean(tf.cast(correct,'float'))
+					i+=batch_size
 			
-			#Getting the accuracy per epoch
-			AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
-			print AccuracyArray[epoch]
-			epochNum=epoch+1
+				#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
+				#Getting the accuracy per epoch. 
+				AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
 		
-		#Getting the max accuracy achieved as well as the epoch it achieved that accuracy.
-		MaxAccuracyAchieved=np.amax(AccuracyArray)
-		EpochMaxAccuracy=np.argmax(AccuracyArray)+1
+			#Getting the max accuracy achieved as well as the epoch it achieved that accuracy.
+			#MaxAccuracyAchieved=np.amax(AccuracyArray)
+			#EpochMaxAccuracy=np.argmax(AccuracyArray)+1
 			
 			
 
@@ -240,18 +217,18 @@ def train_neural_network(x):
 
 
 #############################################################################################################################################
-#STEP FOUR: TESTING THE ACCURACY OF THE NEURAL NETWORK 
+#STEP FOUR: TESTING THE ACCURACY OF THE NEURAL NETWORK (Commented this out for now, but can put back in to test the accuracy after training has completed. 
 
 
 		#NOTE: Since the optimizer operation is not being ran, the weights are not being changed. 
 					
 		
-		#Setting up the correct and accuracy operations to allow for the accuracy calculation (see ppt. for more detail).
-		correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
-		accuracy=tf.reduce_mean(tf.cast(correct,'float'))
+			#Setting up the correct and accuracy operations to allow for the accuracy calculation (see ppt. for more detail).
+			#correct=tf.equal(tf.argmax(prediction,1), tf.argmax(Labels_Placeholder,1))
+			#accuracy=tf.reduce_mean(tf.cast(correct,'float'))
 		
-		#Printing a message indicating the accuracy the ANN achieved as well as how many epochs it required.
-		print "%f,%d" %(MaxAccuracyAchieved,EpochMaxAccuracy)
+			#Printing a message indicating the accuracy the ANN achieved as well as how many epochs it required.
+			#print "%f,%d" %(MaxAccuracyAchieved,EpochMaxAccuracy)
 
 		
 #############################################################################################################################################
