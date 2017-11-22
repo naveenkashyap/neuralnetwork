@@ -1,4 +1,6 @@
 import tensorflow as tf
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
 import numpy as np
 import sys
 import math
@@ -16,6 +18,28 @@ import generator
 #7) num_Nodes
 #8) num_epochs
 
+def print_accuracy(accuracies):
+	filename = "results/" + "_".join(["3", str(Dimensionality), str(Num_Points), str(OS_mu), str(OS_sigma), str(IS_mu), str(IS_sigma), str(num_Nodes), str(num_epochs)]) + ".csv"
+	f = open(filename, "w")
+	print("Writing to " + filename)
+
+	f.write("layers = " + str(3) + "\n")
+	f.write("n = " + str(Dimensionality) + "\n")
+	f.write("points = " + str(Num_Points) + "\n")
+	f.write("Inner Sphere: Mu = " + str(IS_mu) + "\n")
+	f.write("Inner Sphere: Sigma = " + str(IS_sigma) + "\n")
+	f.write("Outer Sphere: Mu = " + str(OS_mu) + "\n")
+	f.write("Outer Sphere: Sigma = " + str(OS_sigma) + "\n")
+	f.write("nodes = " + str(num_Nodes) + "\n")
+	f.write("epochs = " + str(num_epochs) + "\n")
+	f.write("-----------------------------------\n")
+
+	for i in range(len(accuracies)):
+		line = str(i) + ", " + str(accuracies[i]) + "\n"
+		f.write(line)
+	
+	f.close()
+
 
 #############################################################################################################################################
 #STEP ONE: READ IN DATA
@@ -32,16 +56,18 @@ OS_sigma = int(sys.argv[4])
 IS_mu=int(sys.argv[5])
 IS_sigma=int(sys.argv[6])
 
+print("Generating outer sphere")
 #Generating the outer sphere points
 OuterSphereArray=g.generate(OS_mu,OS_sigma,Dimensionality,Num_Points,1)
 
-
+print("Generating inner sphere")
 #Generating the inner sphere points
 InnerSphereArray=g.generate(IS_mu,IS_sigma,Dimensionality,Num_Points,0)
 
 
 #Shuffling the data and splitting it up into the different arrays required.
 
+print("Shuffling data")
 AllData=np.append(OuterSphereArray,InnerSphereArray,axis=0)
 np.random.shuffle(AllData)
 
@@ -86,6 +112,9 @@ for i in range(len(AllData)):
 #One hidden layer only
 num_Nodes=int(sys.argv[7])
 
+#One epoch is a complete cycle through the data as well as the backpropogation (adjusting the weights to increase accuracy)
+num_epochs=int(sys.argv[8])
+
 #Number of output nodes
 n_classes=2
 
@@ -113,7 +142,16 @@ def neural_network_model(data):
 
 	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
 	hidden_1_layer={'weights':tf.Variable(tf.random_normal([Dimensionality,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
+
+	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
+	hidden_2_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
+
+	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
+	hidden_3_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
 	
+	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
+	hidden_4_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
+
 	#These are the weights that are leading into the two output nodes.
 	output_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,n_classes])),'biases':tf.Variable(tf.random_normal([n_classes]))}
 	
@@ -123,7 +161,22 @@ def neural_network_model(data):
 	#Takes the output of the (input*weights) + biases of layer one and puts it through a sigmoid function (to get the input to the output nodes). This is the output of the first layer that is to be fed into the output layer. The explicit function is: 1/(1+exp(-x))
 	l1=tf.nn.sigmoid(l1)
 
-	output=tf.add(tf.matmul(l1,output_layer['weights']),output_layer['biases'])
+	#This preforms the actual manipulation of the data. The data is multiplied by the weights, and then the biases are added. This gives the nodes something to work with (for their activation function)
+	l2=tf.add(tf.matmul(l1,hidden_2_layer['weights']),hidden_2_layer['biases'])
+
+	l2=tf.nn.sigmoid(l2)
+
+	#This preforms the actual manipulation of the data. The data is multiplied by the weights, and then the biases are added. This gives the nodes something to work with (for their activation function)
+	l3=tf.add(tf.matmul(l2,hidden_3_layer['weights']),hidden_3_layer['biases'])
+
+	l3=tf.nn.sigmoid(l3)
+
+	#This preforms the actual manipulation of the data. The data is multiplied by the weights, and then the biases are added. This gives the nodes something to work with (for their activation function)
+	l4=tf.add(tf.matmul(l3,hidden_4_layer['weights']),hidden_4_layer['biases'])
+
+	l4=tf.nn.sigmoid(l4)
+
+	output=tf.add(tf.matmul(l4,output_layer['weights']),output_layer['biases'])
 
 	output=tf.nn.softmax(logits=output)
 
@@ -158,16 +211,13 @@ def train_neural_network(x):
 	#Optimizing function that acts to minimize the cost function (and therefore minimize the difference between the output values and the expected values)
 	optimizer = tf.train.AdamOptimizer().minimize(cost)
 
-	#One epoch is a complete cycle through the data as well as the backpropogation (adjusting the weights to increase accuracy)
-	num_epochs=int(sys.argv[8])
-
 	#Setting up the accuracy array to hold the ANN's accuracy per epoch.
-        AccuracyArray=np.zeros(num_epochs)
+	AccuracyArray=np.zeros(num_epochs)
 		
 
 	with tf.device('/device:GPU:0'):	
 		#Now actually running the ANN.
-		with tf.Session() as sess:
+		with tf.Session(config=config) as sess:
 
 			#Initializes the variables (the weights and biases of the first hidden layer and the output layer) that were set up earlier. 
 			sess.run(tf.global_variables_initializer())
@@ -202,11 +252,12 @@ def train_neural_network(x):
 				#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
 				#Getting the accuracy per epoch. 
 				AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
+				print(AccuracyArray[epoch])
 		
 			#Getting the max accuracy achieved as well as the epoch it achieved that accuracy.
 			#MaxAccuracyAchieved=np.amax(AccuracyArray)
 			#EpochMaxAccuracy=np.argmax(AccuracyArray)+1
-			
+	print_accuracy(AccuracyArray)
 			
 
 #############################################################################################################################################
@@ -246,3 +297,4 @@ train_neural_network(Input_Placeholder)
 
  
 #############################################################################################################################################
+

@@ -1,8 +1,8 @@
 import tensorflow as tf
 import numpy as np
 import generator
-import Trainer_np_Array
-import Tester_np_Array
+from computation.trainer import Trainer_np_Array
+from computation.trainer import Tester_np_Array
 import sys
 import math
 
@@ -76,7 +76,7 @@ def main():
 
 	HiddenLayer1Dict,OutputLayerDict=Trainer.get_Layers()
 
-	for i in range(10):
+	for i in range(50):
 		Trainer.Train(TrainingDataPoints,TrainingLabels,BatchSize,TestingDataPoints,TestingLabels)
 	#Tester.test(HiddenLayer1Dict,OutputLayerDict,TestingDataPoints,TestingLabels,"DummyFile.txt")
 	
