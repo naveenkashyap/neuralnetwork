@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NODES=10
+NODES=50
 OSMU=10
 OSSIG=5
 ISMU=0
@@ -8,14 +8,27 @@ ISSIG=5
 EPOCHS=50
 DIMENS=60
 POINTS=10000
-LAYERS=2
 
-echo "Using $LAYERS layer(s), $DIMENS dimensions, $POINTS points per sphere for $EPOCHS epochs"
-echo Outer sphere: mu = $OSMU sigma=$OSSIG
-echo Inner sphere: mu = $ISMU sigma=$ISSIG
-while [ $NODES -lt 50 ]
+while [ $NODES -lt 201 ]
 do
-  echo "Using $NODES nodes"
-  singularity exec --bind /usr/lib64/nvidia:/host-libs /cvmfs/singularity.opensciencegrid.org/opensciencegrid/tensorflow-gpu:latest python3 ANN.py 60 10000 10 5 0 5 $NODES 50 > /dev/null
-  let NODES=$NODES+10
+
+LAYERS=1
+
+  while [ $LAYERS -lt 11 ]
+  do
+    NODES_PER_LAYER=$((NODES / LAYERS))
+
+    echo "Using $LAYERS layer(s), $NODES_PER_LAYER nodes per layer, $DIMENS dimensions, $POINTS points per sphere for $EPOCHS epochs"
+    echo "Total number of nodes: $NODES"
+    echo Outer sphere: mu = $OSMU sigma=$OSSIG
+    echo Inner sphere: mu = $ISMU sigma=$ISSIG
+
+    singularity exec --bind /usr/lib64/nvidia:/host-libs /cvmfs/singularity.opensciencegrid.org/opensciencegrid/tensorflow-gpu:latest python3 ANN.py $DIMENS $POINTS $OSMU $OSSIG $ISMU $ISSIG $NODES_PER_LAYER $EPOCHS $LAYERS > /dev/null
+
+    LAYERS=$((LAYERS+1))
+
+  done
+
+  NODES=$((NODES+50))
+
 done

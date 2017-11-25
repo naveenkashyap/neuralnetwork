@@ -5,8 +5,7 @@ import numpy as np
 import sys
 import math
 import generator
-
-
+import time
 
 #Command Line Arguments:
 #1) Dimensionality
@@ -17,21 +16,24 @@ import generator
 #6) IS_sigma
 #7) num_Nodes
 #8) num_epochs
+#9) num_layers
 
-def print_accuracy(accuracies):
-	filename = "results/" + "_".join(["3", str(Dimensionality), str(Num_Points), str(OS_mu), str(OS_sigma), str(IS_mu), str(IS_sigma), str(num_Nodes), str(num_epochs)]) + ".csv"
+def print_accuracy(accuracies, end_time):
+
+	filename = "results/" + "_".join([str(num_layers), str(Dimensionality), str(Num_Points), str(OS_mu), str(OS_sigma), str(IS_mu), str(IS_sigma), str(num_Nodes), str(num_epochs)]) + ".csv"
 	f = open(filename, "w")
 	print("Writing to " + filename)
 
-	f.write("layers = " + str(3) + "\n")
+	f.write("layers = " + str(num_layers) + "\n")
 	f.write("n = " + str(Dimensionality) + "\n")
 	f.write("points = " + str(Num_Points) + "\n")
 	f.write("Inner Sphere: Mu = " + str(IS_mu) + "\n")
 	f.write("Inner Sphere: Sigma = " + str(IS_sigma) + "\n")
 	f.write("Outer Sphere: Mu = " + str(OS_mu) + "\n")
 	f.write("Outer Sphere: Sigma = " + str(OS_sigma) + "\n")
-	f.write("nodes = " + str(num_Nodes) + "\n")
+	f.write("nodes per layer = " + str(num_Nodes) + "\n")
 	f.write("epochs = " + str(num_epochs) + "\n")
+	f.write("Computation time: " + str(end_time - start_time) + "\n")
 	f.write("-----------------------------------\n")
 
 	for i in range(len(accuracies)):
@@ -48,13 +50,15 @@ g=generator.Generator()
 Dimensionality = int(sys.argv[1])
 Num_Points = int(sys.argv[2])
 
-
 OS_mu = int(sys.argv[3])
 OS_sigma = int(sys.argv[4])
 
-
 IS_mu=int(sys.argv[5])
 IS_sigma=int(sys.argv[6])
+
+num_Nodes=int(sys.argv[7])
+num_epochs=int(sys.argv[8])
+num_layers = int(sys.argv[9])
 
 print("Generating outer sphere")
 #Generating the outer sphere points
@@ -109,12 +113,6 @@ for i in range(len(AllData)):
 #STEP TWO: SET UP THE CONSTANTS OF THE NN
 
 
-#One hidden layer only
-num_Nodes=int(sys.argv[7])
-
-#One epoch is a complete cycle through the data as well as the backpropogation (adjusting the weights to increase accuracy)
-num_epochs=int(sys.argv[8])
-
 #Number of output nodes
 n_classes=2
 
@@ -140,47 +138,38 @@ Labels_Placeholder=tf.placeholder('float')
 #Setting up the computation graph of the ANN. The ANN has two inputs (the x-coordinate and the y-coordinate of the data point), one layer with the user defined number of nodes, and one output layer. 
 def neural_network_model(data):
 
+	layers = list()
+
 	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
 	hidden_1_layer={'weights':tf.Variable(tf.random_normal([Dimensionality,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
 
-	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
-	hidden_2_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
-
-	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
-	hidden_3_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
-	
-	#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
-	hidden_4_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
-
-	#These are the weights that are leading into the two output nodes.
-	output_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,n_classes])),'biases':tf.Variable(tf.random_normal([n_classes]))}
-	
 	#This preforms the actual manipulation of the data. The data is multiplied by the weights, and then the biases are added. This gives the nodes something to work with (for their activation function)
 	l1=tf.add(tf.matmul(data,hidden_1_layer['weights']),hidden_1_layer['biases'])
-	
+
 	#Takes the output of the (input*weights) + biases of layer one and puts it through a sigmoid function (to get the input to the output nodes). This is the output of the first layer that is to be fed into the output layer. The explicit function is: 1/(1+exp(-x))
 	l1=tf.nn.sigmoid(l1)
 
-	#This preforms the actual manipulation of the data. The data is multiplied by the weights, and then the biases are added. This gives the nodes something to work with (for their activation function)
-	l2=tf.add(tf.matmul(l1,hidden_2_layer['weights']),hidden_2_layer['biases'])
+	layers.append(l1)
 
-	l2=tf.nn.sigmoid(l2)
+	for i in range(1, num_layers):
 
-	#This preforms the actual manipulation of the data. The data is multiplied by the weights, and then the biases are added. This gives the nodes something to work with (for their activation function)
-	l3=tf.add(tf.matmul(l2,hidden_3_layer['weights']),hidden_3_layer['biases'])
+		#The weights are randomized for the first run through. The weights will be calibrated to minimize the cost function. 
+		layer = {'weights':tf.Variable(tf.random_normal([num_Nodes,num_Nodes])),'biases':tf.Variable(tf.random_normal([num_Nodes]))}
 
-	l3=tf.nn.sigmoid(l3)
+		#This preforms the actual manipulation of the data. The data is multiplied by the weights, and then the biases are added. This gives the nodes something to work with (for their activation function)
+		l = tf.add(tf.matmul(layers[i-1], layer['weights']),layer['biases'])
 
-	#This preforms the actual manipulation of the data. The data is multiplied by the weights, and then the biases are added. This gives the nodes something to work with (for their activation function)
-	l4=tf.add(tf.matmul(l3,hidden_4_layer['weights']),hidden_4_layer['biases'])
+		l=tf.nn.sigmoid(l)
+	
+		layers.append(l)
 
-	l4=tf.nn.sigmoid(l4)
+	#These are the weights that are leading into the two output nodes.
+	output_layer={'weights':tf.Variable(tf.random_normal([num_Nodes,n_classes])),'biases':tf.Variable(tf.random_normal([n_classes]))}
 
-	output=tf.add(tf.matmul(l4,output_layer['weights']),output_layer['biases'])
+	output=tf.add(tf.matmul(layers[-1],output_layer['weights']),output_layer['biases'])
 
 	output=tf.nn.softmax(logits=output)
 
-	
 	return output
 
 
@@ -252,12 +241,17 @@ def train_neural_network(x):
 				#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
 				#Getting the accuracy per epoch. 
 				AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
-				print(AccuracyArray[epoch])
+
+				f = open("current_progress.txt", 'w')
+				line = str(epoch) + ", " + str(AccuracyArray[epoch]) + "\n"
+				f.write(line)
+				f.close()
 		
 			#Getting the max accuracy achieved as well as the epoch it achieved that accuracy.
 			#MaxAccuracyAchieved=np.amax(AccuracyArray)
 			#EpochMaxAccuracy=np.argmax(AccuracyArray)+1
-	print_accuracy(AccuracyArray)
+	end_time = time.time()
+	print_accuracy(AccuracyArray, end_time)
 			
 
 #############################################################################################################################################
@@ -292,7 +286,7 @@ def train_neural_network(x):
 #############################################################################################################################################
 #STEP FIVE: RUNNING THE CODE
 
-
+start_time = time.time()
 train_neural_network(Input_Placeholder)
 
  
