@@ -62,12 +62,32 @@ num_layers = int(sys.argv[9])
 
 print("Generating outer sphere")
 #Generating the outer sphere points
-OuterSphereArray=g.generate(OS_mu,OS_sigma,Dimensionality,Num_Points,1)
+OuterSphereArray, OSbins, OSincs =g.generate(OS_mu,OS_sigma,Dimensionality,Num_Points,1)
 
 print("Generating inner sphere")
 #Generating the inner sphere points
-InnerSphereArray=g.generate(IS_mu,IS_sigma,Dimensionality,Num_Points,0)
+InnerSphereArray, ISbins, ISincs =g.generate(IS_mu,IS_sigma,Dimensionality,Num_Points,0)
 
+# Merging bins for convergence testing later on
+if len(ISbins) != len(ISincs):
+        print("ISbins: " + str(len(ISbins)) + " does not equal ISincs: " + str(len(ISincs)))
+if len(OSbins) != len(OSincs):
+        print("OSbins: " + str(len(OSbins)) + " does not equal OSincs: " + str(len(OSincs)))
+
+minval = ISincs[0]
+maxval = OSincs[-1]
+
+incs = [x for x in range(minval, maxval+1)]
+bins = [[] for x in range(minval, maxval+1)]
+
+#fill in inner bins from left to right and then fill in outer bins from right to left
+for src_index, inc in enumerate(ISincs):
+        dst_index = incs.index(inc)
+        bins[dst_index].append(ISbins[src_index])
+
+for src_index, inc in enumerate(OSincs):
+        dst_index = incs.index(inc)
+        bins[dst_index].append(OSbins[src_index])
 
 #Shuffling the data and splitting it up into the different arrays required.
 
