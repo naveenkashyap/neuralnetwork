@@ -83,11 +83,13 @@ bins = [[] for x in range(minval, maxval+1)]
 #fill in inner bins from left to right and then fill in outer bins from right to left
 for src_index, inc in enumerate(ISincs):
         dst_index = incs.index(inc)
-        bins[dst_index].append(ISbins[src_index])
+	for point in ISbins[src_index]:
+                bins[dst_index].append(point)
 
 for src_index, inc in enumerate(OSincs):
         dst_index = incs.index(inc)
-        bins[dst_index].append(OSbins[src_index])
+	for point in )Sbins[src_index]:
+                bins[dst_index].append(point)
 
 #Shuffling the data and splitting it up into the different arrays required.
 
