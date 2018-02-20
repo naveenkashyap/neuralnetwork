@@ -96,8 +96,6 @@ class Generator():
 					else:
 						l_point = np.append(c_point, [0,1])
 
-					bucket.append(l_point)
-			bins[index] = bucket
-		
+					bins[index].append(l_point)
 		return bins, incs
 
