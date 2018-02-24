@@ -4,23 +4,23 @@ import math
 
 
 
-############################################################################################################################################################
-#STEP ONE: READING IN/CONFIGURING THE NECESSARY VARIABLES/ARRAYS.
+#############################################################################################################################################################STEP ONE: READING IN/CONFIGURING THE NECESSARY VARIABLES/ARRAYS.
 #First arg is total number of points desired
 #Second arg is length of one side
-#Third arg is the sigma for the distribution
-
+#Third arg is the sigma for the distribution 
+#Fourth arg is how the number of distributions per side
 
 
 #Setting up the needed variables
-#Reading in command line arguments
+#Reading in command line arguments 
 TotalNumPoints=float(sys.argv[1])
 LengthOfSide=float(sys.argv[2])
 DistSigma=float(sys.argv[3])
+DistPerSide=int(sys.argv[4])
 
 
-#Need to figure out a way to dynamically compute step size based on TotalNumPoints and NumSides in a way s.t. all points will be used and sides of the square will be covered. For now, manually setting it to something that I have to change based on the number of points we want and the step size.
-StepSize=0.5
+#This along with the rounded down points per side alows for the desired number of distributions to be set up on each side.
+StepSize=LengthOfSide/(DistPerSide-1)
 
 
 #Setting up extra variables
@@ -28,12 +28,10 @@ NumberOfSides=4.
 
 
 #Points per side=(Total Points)/(Number of Sides).
-PointsPerSide=math.ceil((TotalNumPoints/NumberOfSides))
+PointsPerSide=math.floor((TotalNumPoints/NumberOfSides))
 
 
-#Number of Distributions per Side=(Length of One Side)/(Step Size [size between distributions])
 #Points per distribution=(Total Number of Points)/((Number Of Distributions Per Side) *(Number Of Sides))
-DistPerSide=math.ceil(LengthOfSide/StepSize)
 PointsPerDist=int(math.floor(TotalNumPoints/(DistPerSide*NumberOfSides)))
 
 
@@ -55,7 +53,7 @@ EntireSquarePoints=np.zeros((int(TotalNumPoints),2))
 
 
 #Setting up storage
-XOneSidePoints=np.zeros((int(TotalNumPoints/NumberOfSides),2))
+TotalXDistPoints=np.zeros((int(TotalNumPoints/NumberOfSides),2))
 XOneDistPoints=np.zeros((int(PointsPerDist),2))
 
 
@@ -68,41 +66,41 @@ DistNumber=1
 #Generating the first distribution
 XOneDistPoints[:,1]=StartingYCoord
 for i in range(len(XOneDistPoints)):
-        XOneDistPoints[i,0]=np.random.normal(StartingXCoord,DistSigma)
+	XOneDistPoints[i,0]=np.random.normal(StartingXCoord,DistSigma)
 
 
-#Copying the points from the first dist into XOneSidePoints
+#Copying the points from the first dist into TotalXDistPoints
 for i in range(len(XOneDistPoints)):
-        XOneSidePoints[i]=XOneDistPoints[i]
+	TotalXDistPoints[i]=XOneDistPoints[i]
 
 
 #Translating the distribution up along the leftmost vertical edge
-for i in range(int(PointsPerDist),int(len(XOneSidePoints))):
-        #If the next step would still be within the bounds of the square, copy the x-coordinates and shift up the y-coordinates
-        if XOneDistPoints[i%PointsPerDist,1]+DistNumber*StepSize<=(-1*StartingYCoord):
-                #Shifting the dist up by a multiple of step size and copying it into XOneSidePoints
-                XOneSidePoints[i,0]=XOneDistPoints[i%PointsPerDist,0]
-                XOneSidePoints[i,1]=XOneDistPoints[i%PointsPerDist,1]+DistNumber*StepSize
-                 if (i%PointsPerDist)==PointsPerDist-1:
-                        DistNumber=DistNumber+1
+for i in range(int(PointsPerDist),int(len(TotalXDistPoints))):
+	#If the next step would still be within the bounds of the square, copy the x-coordinates and shift up the y-coordinates
+	if XOneDistPoints[i%PointsPerDist,1]+DistNumber*StepSize<=(-1*StartingYCoord):
+		#Shifting the dist up by a multiple of step size and copying it into TotalXDistPoints
+		TotalXDistPoints[i,0]=XOneDistPoints[i%PointsPerDist,0]
+		TotalXDistPoints[i,1]=XOneDistPoints[i%PointsPerDist,1]+DistNumber*StepSize
+		if (i%PointsPerDist)==PointsPerDist-1:
+			DistNumber=DistNumber+1
 
 
 #If there are left over points (points that are supposed to be on an edge but the distributions have already hit the end of an edge [if we incremented anymore, the distributions would be centered off of the LHS of the square] ), put all those points on the end of the edge.
-for i in range(len(XOneSidePoints)):
-        #The x coordinate would be zero iff that location wasn't already put into a distribution. If this is the case, generating a new distribution at the end of the edge with new x-coordinates.
-        if XOneSidePoints[i,0]==0:
-                XOneSidePoints[i,1]=-1*StartingYCoord
-                XOneSidePoints[i,0]=np.random.normal(-1*StartingXCoord,DistSigma)
+for i in range(len(TotalXDistPoints)):	
+	#The x coordinate would be zero iff that location wasn't already put into a distribution. If this is the case, generating a new distribution at the end of the edge with new x-coordinates.
+	if TotalXDistPoints[i,0]==0:
+		TotalXDistPoints[i,1]=-1*StartingYCoord
+		TotalXDistPoints[i,0]=np.random.normal(-1*StartingXCoord,DistSigma)
 
 
 #Copying the points into the EntirePointsArray
-for i in range(len(XOneSidePoints)*2):
-        #Copying over the flipped version
-        if i >= len(XOneSidePoints):
-                EntireSquarePoints[i]=-1*XOneSidePoints[i-(len(XOneSidePoints))]
-        #Copying the original version
-        else:
-                EntireSquarePoints[i]=XOneSidePoints[i]
+for i in range(len(TotalXDistPoints)*2):
+	#Copying over the flipped version
+	if i >= len(TotalXDistPoints):
+		EntireSquarePoints[i]=-1*TotalXDistPoints[i-(len(TotalXDistPoints))]
+	#Copying the original version
+	else:
+		EntireSquarePoints[i]=TotalXDistPoints[i]
 
 
 
@@ -118,7 +116,7 @@ for i in range(len(XOneSidePoints)*2):
 
 
 #Setting up storage
-YOneSidePoints=np.zeros((int(TotalNumPoints/NumberOfSides),2))
+TotalYDistPoints=np.zeros((int(TotalNumPoints/NumberOfSides),2))
 YOneDistPoints=np.zeros((int(PointsPerDist),2))
 DistNumber=1
 
@@ -129,42 +127,53 @@ for i in range(len(YOneDistPoints)):
         YOneDistPoints[i,1]=np.random.normal(StartingYCoord,DistSigma)
 
 
-#Copying the points from the first dist into YOneSidePoints
+#Copying the points from the first dist into TotalYDistPoints
 for i in range(len(YOneDistPoints)):
-        YOneSidePoints[i]=YOneDistPoints[i]
+        TotalYDistPoints[i]=YOneDistPoints[i]
 
 
 #Shifting the distribution along the horizontal lower edge.
-for i in range(int(PointsPerDist),int(len(YOneSidePoints))):
-        #If the x-coordinates are still on the square
-        if YOneDistPoints[i%PointsPerDist,0]+DistNumber*StepSize<=(-1*StartingXCoord):
-                #Shifting the dist a multiple of step size to the right and copying it into YOneSidePoints
-                YOneSidePoints[i,1]=YOneDistPoints[i%PointsPerDist,1]
-                YOneSidePoints[i,0]=YOneDistPoints[i%PointsPerDist,0]+DistNumber*StepSize
+for i in range(int(PointsPerDist),int(len(TotalYDistPoints))):
+	#If the x-coordinates are still on the square
+	if YOneDistPoints[i%PointsPerDist,0]+DistNumber*StepSize<=(-1*StartingXCoord):
+                #Shifting the dist a multiple of step size to the right and copying it into TotalYDistPoints
+                TotalYDistPoints[i,1]=YOneDistPoints[i%PointsPerDist,1]
+                TotalYDistPoints[i,0]=YOneDistPoints[i%PointsPerDist,0]+DistNumber*StepSize
                 if (i%PointsPerDist)==PointsPerDist-1:
                         DistNumber=DistNumber+1
 
 
 #If there are left over points (points that are supposed to be on an edge but the distributions have already hit the end of an edge [if we incremented anymore, the distributions would be centered off of the bottom side of the square] ), put all those points on the end of the edge.
-for i in range(len(YOneSidePoints)):
+for i in range(len(TotalYDistPoints)):
          #The y-coordinate would be zero iff the point was not assigned to a distribution
-         if YOneSidePoints[i,1]==0:
-                YOneSidePoints[i,0]=-1*StartingXCoord
-                YOneSidePoints[i,1]=np.random.normal(-1*StartingYCoord,DistSigma)
+	 if TotalYDistPoints[i,1]==0:
+                TotalYDistPoints[i,0]=-1*StartingXCoord
+                TotalYDistPoints[i,1]=np.random.normal(StartingYCoord,DistSigma)
+
+
 
 
 #Copying the points into the EntirePointsArray
-for i in range(len(YOneSidePoints)*2):
+for i in range(len(TotalYDistPoints)*2):
         #Copying over the flipped version
-        if i >= len(YOneSidePoints):
-                EntireSquarePoints[i+len(XOneSidePoints)*2]=-1*YOneSidePoints[i-(len(YOneSidePoints))]
-        #Copying over the original version
-        else:
-                EntireSquarePoints[i+len(XOneSidePoints)*2]=YOneSidePoints[i]
+        if i >= len(TotalYDistPoints):
+                EntireSquarePoints[i+len(TotalXDistPoints)*2]=-1*TotalYDistPoints[i-(len(TotalYDistPoints))]
 
+	#Copying over the original version
+        else:
+                EntireSquarePoints[i+len(TotalXDistPoints)*2]=TotalYDistPoints[i]
+
+
+
+#Fixing any unassigned points (in case the all the points don't fit cleanly into the desired number of distributions) by assigning the left over positions to the bottom left hand corner. 
+for j in range(len(EntireSquarePoints)):
+	if EntireSquarePoints[j,0]==0 and EntireSquarePoints[j,1]==0:
+		EntireSquarePoints[j,0]=StartingXCoord
+		EntireSquarePoints[j,1]=np.random.normal(StartingYCoord,DistSigma)
 
 
 ############################################################################################################################################################
+
 
 
 
@@ -173,10 +182,9 @@ for i in range(len(YOneSidePoints)*2):
 #STEP FOUR: WRITE TO FILE
 
 
-
 TestFile=open("FirstGeneration.txt","w")
-for i in range(int(TotalNumPoints-1)):
-        TestFile.write(str(EntireSquarePoints[i,0])+","+str(EntireSquarePoints[i,1])+"\n")
+for i in range(int(TotalNumPoints)):
+	TestFile.write(str(EntireSquarePoints[i,0])+","+str(EntireSquarePoints[i,1])+"\n")
 TestFile.close()
 
 
