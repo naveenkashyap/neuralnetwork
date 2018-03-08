@@ -8,8 +8,8 @@ import generator
 import time
 
 #Command Line Arguments:
-#1) Num Points
-#2) Length of Square Side
+#1) Area
+#2) Points Per Dist
 #3) Square Distribution Sigma
 #4) Distributions per Side (Square)
 #5) Circle Sigma
@@ -26,7 +26,6 @@ def print_accuracy(accuracies, end_time):
 	f.write("layers = " + str(num_layers) + "\n")
 	f.write("n = " + str(Dimensionality) + "\n")
 	f.write("points = " + str(Num_Points) + "\n")
-	f.write("Square Side Length = " + str(side_Length) + "\n")
 	f.write("Square Sigma = " + str(square_Sigma) + "\n")
 	f.write("Area = " + str(Area) + "\n")
 	f.write("Circle Mu = " + str(circle_Mu) + "\n")
@@ -47,8 +46,8 @@ def print_accuracy(accuracies, end_time):
 #STEP ONE: READ IN DATA
 
 g=generator.Generator()
-Num_Points = int(sys.argv[1])
-side_Length=float(sys.argv[2])
+Area = float(sys.argv[1])
+points_per_Dist=int(sys.argv[2])
 square_Sigma=float(sys.argv[3])
 dist_per_Side=int(sys.argv[4])
 circle_Sigma=float(sys.argv[5])
@@ -56,13 +55,14 @@ num_Nodes=int(sys.argv[6])
 num_epochs=int(sys.argv[7])
 num_layers = int(sys.argv[8])
 
-Area=math.pow(side_Length,2)
+Num_Points=dist_per_Side*points_per_Dist*4
+
 Dimensionality=2
 circle_Mu=math.sqrt(Area/math.pi)
 
 print("Generating all data")
 #Generating the inner sphere points
-AllData=g.generate_all_points(Num_Points,side_Length,square_Sigma,dist_per_Side,circle_Sigma)
+AllData=g.generate_all_points(Area,points_per_Dist,dist_per_Side,square_Sigma,circle_Sigma)
 
 
 #Shuffling the data and splitting it up into the different arrays required.
