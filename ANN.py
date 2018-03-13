@@ -6,6 +6,7 @@ import sys
 import math
 import generator
 import time
+import os
 
 #Command Line Arguments:
 #1) Dimensionality
@@ -78,18 +79,28 @@ minval = ISincs[0]
 maxval = OSincs[-1]
 
 incs = [x for x in range(minval, maxval+1)]
-bins = [[] for x in range(minval, maxval+1)]
+coord_bins = [[] for x in range(minval, maxval+1)]
+label_bins=[[] for x in range(minval, maxval+1)]
+bins=[[] for x in range(minval, maxval+1)]
 
 #fill in inner bins from left to right and then fill in outer bins from right to left
 for src_index, inc in enumerate(ISincs):
         dst_index = incs.index(inc)
 	for point in ISbins[src_index]:
-                bins[dst_index].append(point)
+		coord=point[:-2]
+                label=point[-2:]
+		coord_bins[dst_index].append(coord)
+		label_bins[dst_index].append(label)	
+		bins[dst_index].append(point)		
 
 for src_index, inc in enumerate(OSincs):
         dst_index = incs.index(inc)
-	for point in )Sbins[src_index]:
-                bins[dst_index].append(point)
+	for point in OSbins[src_index]:
+		coord=point[:-2]
+                label=point[-2:]
+                coord_bins[dst_index].append(coord)
+                label_bins[dst_index].append(label)	
+		bins[dst_index].append(point)
 
 #Shuffling the data and splitting it up into the different arrays required.
 
@@ -217,7 +228,7 @@ def train_neural_network(x):
 	prediction=neural_network_model(x)
 	
 	#Setting up the cost function (which is later minimized to increase accuracy).
-	cost=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction,labels=Labels_Placeholder))
+	cost=tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=prediction,labels=Labels_Placeholder))
 	
 	#Optimizing function that acts to minimize the cost function (and therefore minimize the difference between the output values and the expected values)
 	optimizer = tf.train.AdamOptimizer().minimize(cost)
@@ -227,7 +238,7 @@ def train_neural_network(x):
 		
 
 	with tf.device('/device:GPU:0'):	
-		#Now actually running the ANN.
+	#Now actually running the ANN.
 		with tf.Session(config=config) as sess:
 
 			#Initializes the variables (the weights and biases of the first hidden layer and the output layer) that were set up earlier. 
@@ -260,8 +271,8 @@ def train_neural_network(x):
 					accuracy=tf.reduce_mean(tf.cast(correct,'float'))
 					i+=batch_size
 			
-				#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
-				#Getting the accuracy per epoch. 
+					#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
+					#Getting the accuracy per epoch. 
 				AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
 
 				f = open("current_progress.txt", 'w')
@@ -269,10 +280,50 @@ def train_neural_network(x):
 				f.write(line)
 				f.close()
 		
-			#Getting the max accuracy achieved as well as the epoch it achieved that accuracy.
-			#MaxAccuracyAchieved=np.amax(AccuracyArray)
-			#EpochMaxAccuracy=np.argmax(AccuracyArray)+1
+				#Getting the max accuracy achieved as well as the epoch it achieved that accuracy.
+				#MaxAccuracyAchieved=np.amax(AccuracyArray)
+				#EpochMaxAccuracy=np.argmax(AccuracyArray)+1
+
+			ISPredictionResArray=np.zeros(len(coord_bins))
+			OSPredictionResArray=np.zeros(len(coord_bins))
+		
+			coord_counter=0
+			bin_counter=0
+			firstPass=True
+			for i in range(len(coord_bins)):
+				#If the bin isn't empty
+				if len(coord_bins[i]) != 0:
+					if not firstPass:
+						ANNOutput=sess.run(prediction,feed_dict={Input_Placeholder:coord_array,Labels_Placeholder:label_array})	
+						ISPredictionResults=ANNOutput[:,0]
+						OSPredictionResults=ANNOutput[:,1]
+					
+						#Summing over all the results of the ANN individual output nodes and storing that result in arrays.
+						ISPredictionDataPoint=((np.sum(ISPredictionResults))/float(len(ISPredictionResults)))
+						OSPredictionDataPoint=((np.sum(OSPredictionResults))/float(len(OSPredictionResults)))
+						ISPredictionResArray[bin_counter]=ISPredictionDataPoint
+						OSPredictionResArray[bin_counter]=OSPredictionDataPoint
+						bin_counter=bin_counter+1
+							
+					firstPass=False	
+					coord_array=np.zeros((len(coord_bins[i]),Dimensionality))			
+					coord_counter=0
+					label_array=np.zeros((len(coord_bins[i]),Dimensionality))				
+
+					#len(coord_bins[i] gives you the number of coordinates within a bin
+					for j in range(len(coord_bins[i])):
+						coord_counter=coord_counter+1
+
+						#Isolating the individual data points within a coordinate
+						for k in range(len(coord_bins[i][j])):
+							coord_array[coord_counter-1][k]=coord_bins[i][j][k]
+				
+						#Copying the label into the label_array
+						for l in range(2):
+							label_array[coord_counter-1][l]=label_bins[i][j][l]	
+	
 	end_time = time.time()
+	apply_binning(ISPredictionResArray,OSPredictionResArray)
 	print_accuracy(AccuracyArray, end_time)
 			
 
@@ -303,6 +354,60 @@ def train_neural_network(x):
 
 
 
+
+#############################################################################################################################################
+
+def apply_binning(ISPredResArray,OSPredResArray):
+
+	ISRelativeProbArray=np.zeros(len(incs))
+	OSRelativeProbArray=np.zeros(len(incs))
+
+	#Computing the PDF Values for the given radii
+	for i in range(len(incs)):
+		OSPDFValue=(1/(math.sqrt(2*math.pi*math.pow(OS_sigma,2))))*math.exp(-(math.pow(incs[i]-OS_mu,2))/(2*math.pow(OS_sigma,2)))
+		ISPDFValue=(1/(math.sqrt(2*math.pi*math.pow(IS_sigma,2))))*math.exp(-(math.pow(incs[i]-IS_mu,2))/(2*math.pow(IS_sigma,2)))
+         
+		ISRelProb=(ISPDFValue)/(ISPDFValue+OSPDFValue)
+		OSRelProb=(OSPDFValue)/(ISPDFValue+OSPDFValue)
+		 
+		ISRelativeProbArray[i]=ISRelProb
+		OSRelativeProbArray[i]=OSRelProb
+
+	DirPath="./results/Bins/"+"_".join([str(OS_mu),str(OS_sigma),str(IS_mu),str(IS_sigma)])
+	os.makedirs(DirPath)
+	
+	#Now that all of the arrays are completed, time to write to file.
+	#Writing all the names of the files. 
+	RadiiArrayFileName=DirPath+"/"+"Radii_Values_"+"_".join([str(OS_mu),str(OS_sigma),str(IS_mu),str(IS_sigma)])+".txt"
+	ISPredictionFileName=DirPath+"/"+"IS_Pred_"+"_".join([str(num_layers),str(Dimensionality),str(Num_Points),str(OS_mu), str(OS_sigma), str(IS_mu), str(IS_sigma), str(num_Nodes), str(num_epochs)])+".txt"
+	OSPredictionFileName=DirPath+"/"+"OS_Pred_"+"_".join([str(num_layers),str(Dimensionality),str(Num_Points),str(OS_mu), str(OS_sigma), str(IS_mu), str(IS_sigma), str(num_Nodes), str(num_epochs)])+".txt"
+	ISRelativeProbFileName=DirPath+"/"+"IS_Rel_Prob_"+"_".join([str(num_layers),str(Dimensionality),str(Num_Points),str(OS_mu), str(OS_sigma), str(IS_mu), str(IS_sigma), str(num_Nodes), str(num_epochs)])+".txt"
+	OSRelativeProbFileName=DirPath+"/"+"OS_Rel_Prob_"+"_".join([str(num_layers),str(Dimensionality),str(Num_Points),str(OS_mu), str(OS_sigma), str(IS_mu), str(IS_sigma), str(num_Nodes), str(num_epochs)])+".txt"
+
+	#Opening all of the files.
+	RadiiArrayFile=open(RadiiArrayFileName,"w")
+	ISPredictionFile=open(ISPredictionFileName,"w")
+	OSPredictionFile=open(OSPredictionFileName,"w")
+	ISRelativeProbFile=open(ISRelativeProbFileName,"w")
+	OSRelativeProbFile=open(OSRelativeProbFileName,"w")
+
+	#Writing all of the arrays to file.
+	for i in range(len(incs)):
+		RadiiArrayFile.write(str(incs[i])+"\n")
+		ISRelativeProbFile.write(str(ISRelativeProbArray[i])+"\n")
+		OSRelativeProbFile.write(str(OSRelativeProbArray[i])+"\n")
+		ISPredictionFile.write(str(ISPredResArray[i])+"\n")
+		OSPredictionFile.write(str(OSPredResArray[i])+"\n")
+	
+	#Closing the files.
+	RadiiArrayFile.close()
+	ISPredictionFile.close()
+        OSPredictionFile.close()
+        ISRelativeProbFile.close()
+        OSRelativeProbFile.close()
+
+
+#############################################################################################################################################
 
 
 #############################################################################################################################################

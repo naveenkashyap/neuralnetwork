@@ -98,4 +98,3 @@ class Generator():
 
 					bins[index].append(l_point)
 		return bins, incs
-
