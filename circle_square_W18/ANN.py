@@ -231,9 +231,9 @@ def train_neural_network(x):
 					accuracy=tf.reduce_mean(tf.cast(correct,'float'))
 					i+=batch_size
 			
-					#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
-					#Getting the accuracy per epoch. 
-					AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
+				#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
+				#Getting the accuracy per epoch. 
+				AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
 
 				f = open("current_progress.txt", 'w')
 				line = str(epoch) + ", " + str(AccuracyArray[epoch]) + "\n"
