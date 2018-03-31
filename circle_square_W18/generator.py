@@ -3,7 +3,7 @@ import math
 
 
 
-class Generator():
+class generator():
 	
 
 
@@ -18,11 +18,11 @@ class Generator():
 		n=2
 	
 		#Generating all points
-		CirclePoints=self.generate_circle(circle_mu,circle_sigma,n,PointsPerDist)
+		CirclePoints=self.generate_circle(circle_mu,circle_sigma,n,PointsPerShape)
 		SquarePoints=self.generate_square_points(PointsPerShape,Area,DistPerSide,PointsPerDist,SquareDistSigma)
 
 		AllLabeledData=np.append(CirclePoints,SquarePoints,axis=0)
-	
+
 		return AllLabeledData		
 
 
