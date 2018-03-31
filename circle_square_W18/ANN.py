@@ -45,7 +45,7 @@ def print_accuracy(accuracies, end_time):
 #############################################################################################################################################
 #STEP ONE: READ IN DATA
 
-g=generator.Generator()
+g=generator.generator()
 Area = float(sys.argv[1])
 points_per_Dist=int(sys.argv[2])
 square_Sigma=float(sys.argv[3])
@@ -61,7 +61,7 @@ Dimensionality=2
 circle_Mu=math.sqrt(Area/math.pi)
 
 print("Generating all data")
-#Generating the inner sphere points
+#Generating all points (square and circle)
 AllData=g.generate_all_points(Area,points_per_Dist,dist_per_Side,square_Sigma,circle_Sigma)
 
 
@@ -172,7 +172,7 @@ def neural_network_model(data):
 
 
 #############################################################################################################################################
-#STEP FOUR: TRAINING THE NEURAL NETWORK
+#STEP THREE: TRAINING THE NEURAL NETWORK
 
 
 #x is the data that is to be fed through. 	
@@ -196,7 +196,8 @@ def train_neural_network(x):
 		
 
 
-	with tf.device('/device:GPU:0'):	
+	with tf.device('/device:GPU:0'):
+
 		#Now actually running the ANN.
 		with tf.Session(config=config) as sess:
 
@@ -230,9 +231,9 @@ def train_neural_network(x):
 					accuracy=tf.reduce_mean(tf.cast(correct,'float'))
 					i+=batch_size
 			
-				#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
-				#Getting the accuracy per epoch. 
-				AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
+					#To-do: Figure out how we want to work with the results. AccuracyArray contains our results per epoch.
+					#Getting the accuracy per epoch. 
+					AccuracyArray[epoch]=accuracy.eval({Input_Placeholder:TestingDataPoints, Labels_Placeholder:TestingLabels})*100
 
 				f = open("current_progress.txt", 'w')
 				line = str(epoch) + ", " + str(AccuracyArray[epoch]) + "\n"
@@ -254,7 +255,7 @@ def train_neural_network(x):
 
 
 #############################################################################################################################################
-#STEP FIVE: TESTING THE ACCURACY OF THE NEURAL NETWORK (Commented this out for now, but can put back in to test the accuracy after training has completed. 
+#STEP FOUR: TESTING THE ACCURACY OF THE NEURAL NETWORK (Commented this out for now, but can put back in to test the accuracy after training has completed. 
 
 
 		#NOTE: Since the optimizer operation is not being ran, the weights are not being changed. 
@@ -276,7 +277,7 @@ def train_neural_network(x):
 
 
 #############################################################################################################################################
-#STEP SIX: RUNNING THE CODE
+#STEP FIVE: RUNNING THE CODE
 
 start_time = time.time()
 train_neural_network(Input_Placeholder)
